@@ -1,0 +1,8 @@
+django>=6.0.1
+django-environ
+django-extensions
+whitenoise
+psycopg[binary]
+pytest-django
+pytest-playwright
+google-genai

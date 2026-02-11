@@ -1,0 +1,18 @@
+{% for event in events %}
+    <tr>
+        <td>{{ event.performed_at|date:"Y-m-d H:i" }}</td>
+        <td>{{ event.get_event_type_display }}</td>
+        <td>{{ event.zone.name }}</td>
+        <td>
+            {% if event.plant %}
+                <a href="{% url 'plant_detail' event.plant.id %}" style="color: var(--primary-color); text-decoration: none; border-bottom: 1px dotted var(--primary-color);">{{ event.plant.name }}</a>
+            {% else %}
+                -
+            {% endif %}
+        </td>
+    </tr>
+{% empty %}
+    <tr>
+        <td colspan="4">No events recorded yet.</td>
+    </tr>
+{% endfor %}

@@ -1,0 +1,69 @@
+<div id="zone-details-card" class="card">
+    <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-semibold">{{ zone.name }}</h2>
+        {% if editing %}
+            <button hx-get="{% url 'garden_detail' zone.id %}" hx-target="#zone-details-card" hx-swap="outerHTML"
+                    class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-1 px-3 rounded text-sm">
+                Cancel
+            </button>
+        {% else %}
+            <button hx-get="{% url 'garden_detail' zone.id %}?edit=true" hx-target="#zone-details-card" hx-swap="outerHTML"
+                    class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded text-sm">
+                Edit Zone
+            </button>
+        {% endif %}
+    </div>
+
+    {% if editing %}
+        <form hx-post="{% url 'garden_detail' zone.id %}" hx-target="#zone-details-card" hx-swap="outerHTML">
+            {% csrf_token %}
+            <div class="mb-3">
+                <label for="{{ form.name.id_for_label }}" class="block text-sm font-medium text-gray-700">Zone Name:</label>
+                {{ form.name }}
+                {% if form.name.errors %}<p class="text-red-500 text-xs italic">{{ form.name.errors }}</p>{% endif %}
+            </div>
+            <div class="mb-3">
+                <label for="{{ form.size_m2.id_for_label }}" class="block text-sm font-medium text-gray-700">Size (m²):</label>
+                {{ form.size_m2 }}
+                {% if form.size_m2.errors %}<p class="text-red-500 text-xs italic">{{ form.size_m2.errors }}</p>{% endif %}
+            </div>
+            <div class="mb-3">
+                <label for="{{ form.irrigation_type.id_for_label }}" class="block text-sm font-medium text-gray-700">Irrigation Type:</label>
+                {{ form.irrigation_type }}
+                {% if form.irrigation_type.errors %}<p class="text-red-500 text-xs italic">{{ form.irrigation_type.errors }}</p>{% endif %}
+            </div>
+            <div class="mb-3">
+                <label for="{{ form.sun_hours.id_for_label }}" class="block text-sm font-medium text-gray-700">Sun Hours (daily avg):</label>
+                {{ form.sun_hours }}
+                {% if form.sun_hours.errors %}<p class="text-red-500 text-xs italic">{{ form.sun_hours.errors }}</p>{% endif %}
+            </div>
+            <div class="mb-4">
+                <label for="{{ form.sunlight_level.id_for_label }}" class="block text-sm font-medium text-gray-700">Sunlight Level:</label>
+                {{ form.sunlight_level }}
+                {% if form.sunlight_level.errors %}<p class="text-red-500 text-xs italic">{{ form.sunlight_level.errors }}</p>{% endif %}
+            </div>
+            <button type="submit" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
+                Save Changes
+            </button>
+            {% if form.non_field_errors %}
+                <div class="text-red-500 text-xs italic mt-2">
+                    {% for error in form.non_field_errors %}
+                        <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </form>
+    {% else %}
+        <p><strong>Size:</strong> {% if zone.size_m2 %}{{ zone.size_m2 }} m²{% else %}N/A{% endif %}</p>
+        <p><strong>Irrigation Type:</strong> {{ zone.get_irrigation_type_display }}</p>
+        <p><strong>Sun Hours:</strong> {% if zone.sun_hours %}{{ zone.sun_hours }} hours{% else %}N/A{% endif %}</p>
+        <p><strong>Sunlight Level:</strong> {{ zone.get_sunlight_level_display }}</p>
+        <p><strong>Watering Frequency:</strong>
+            {% if watering_frequency is not None %}
+                Every {{ watering_frequency|floatformat:1 }} days
+            {% else %}
+                No watering events recorded.
+            {% endif %}
+        </p>
+    {% endif %}
+</div>

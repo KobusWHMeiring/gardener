@@ -1,0 +1,33 @@
+<table>
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Ingredients</th>
+            <th>Instructions</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for recipe in recipes %}
+        <tr id="recipe-{{ recipe.id }}">
+            <td>{{ recipe.name }}</td>
+            <td>{{ recipe.ingredients|truncatechars:50 }}</td>
+            <td>{{ recipe.instructions|truncatechars:50 }}</td>
+            <td>
+                <button 
+                    hx-delete="{% url 'recipe_delete' recipe.id %}" 
+                    hx-target="#recipe-{{ recipe.id }}" 
+                    hx-swap="outerHTML"
+                    style="background-color: #d32f2f;"
+                >
+                    Delete
+                </button>
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="4">No recipes found.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>

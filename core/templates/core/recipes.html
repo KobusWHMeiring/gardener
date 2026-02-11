@@ -1,0 +1,21 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="grid">
+    <div class="card">
+        <h3>Add New Recipe</h3>
+        <form hx-post="{% url 'recipe_create' %}" hx-target="#recipe-list" hx-on::after-request="this.reset()">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit">Save Recipe</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h3>Recipe Book</h3>
+        <div id="recipe-list">
+            {% include 'core/partials/recipe_list.html' %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,61 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 20px;">
+        <h2>Plant Journey: {{ plant.name }}</h2>
+        <span class="status-badge" style="background: var(--primary-color); color: white; padding: 4px 10px; border-radius: 20px; font-size: 0.9em;">
+            {{ plant.get_status_display }}
+        </span>
+    </div>
+
+    <p><strong>Species:</strong> {{ plant.species.name|default:"Unknown" }}</p>
+    <p><strong>Current Zone:</strong> {{ plant.zone.name }}</p>
+</div>
+
+<div class="timeline" style="position: relative; max-width: 800px; margin: 40px auto; padding: 0 20px;">
+    <div style="position: absolute; width: 4px; background-color: var(--primary-color); top: 0; bottom: 0; left: 50%; margin-left: -2px; border-radius: 2px;"></div>
+
+    {% for event in events %}
+    <div style="position: relative; margin-bottom: 40px;">
+        <div style="position: absolute; width: 16px; height: 16px; background-color: white; border: 4px solid var(--primary-color); border-radius: 50%; top: 5px; left: 50%; margin-left: -12px; z-index: 10;"></div>
+        
+        <div class="card" style="width: 45%; margin: 0; {% if forloop.counter|divisibleby:2 %}margin-left: auto;{% else %}margin-right: auto;{% endif %}">
+            <div style="font-weight: bold; color: var(--primary-color); margin-bottom: 5px;">
+                {{ event.performed_at|date:"Y-m-d" }}
+            </div>
+            <div style="font-size: 1.1em; font-weight: bold; margin-bottom: 8px;">
+                {{ event.get_event_type_display }}
+            </div>
+            
+            <div style="font-size: 0.9em;">
+                <p><strong>Zone:</strong> {{ event.zone.name }}</p>
+                {% if event.metadata %}
+                    <div style="background: #f9f9f9; padding: 8px; border-radius: 4px; margin-top: 8px;">
+                        {% for key, value in event.metadata.items %}
+                            <div><strong>{{ key|title }}:</strong> {{ value }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<style>
+    /* Responsive timeline adjust */
+    @media screen and (max-width: 600px) {
+        .timeline::after {
+            left: 31px;
+        }
+        .timeline .card {
+            width: 80%;
+            margin-left: 60px !important;
+        }
+        .timeline div[style*="left: 50%"] {
+            left: 31px !important;
+        }
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,22 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Gardens{% endblock %}
+
+{% block content %}
+<div class="container mx-auto p-4">
+    <h1 class="text-2xl font-bold mb-4">Your Garden Zones</h1>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {% for zone in zones %}
+        <a href="{% url 'garden_detail' zone.id %}" class="block bg-white shadow-md rounded-lg p-6 hover:bg-gray-50 transition duration-150 ease-in-out">
+            <h2 class="text-xl font-semibold text-gray-800 mb-2">{{ zone.name }}</h2>
+            <p class="text-gray-600"><strong>Irrigation:</strong> {{ zone.get_irrigation_type_display }}</p>
+            <p class="text-gray-600"><strong>Sunlight:</strong> {{ zone.get_sunlight_level_display }}</p>
+            <p class="text-gray-600"><strong>Size:</strong> {% if zone.size_m2 %}{{ zone.size_m2 }} m²{% else %}N/A{% endif %}</p>
+        </a>
+        {% empty %}
+        <p class="text-gray-600">No garden zones defined yet. Create one in the admin panel!</p>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

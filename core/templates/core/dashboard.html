@@ -1,0 +1,248 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<style>
+    .fab {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        width: 60px;
+        height: 60px;
+        background-color: var(--primary-color);
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        cursor: pointer;
+        z-index: 1000;
+        font-size: 24px;
+        border: none;
+    }
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1001;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.5);
+        align-items: center;
+        justify-content: center;
+    }
+    .modal-content {
+        background-color: white;
+        padding: 20px;
+        border-radius: 8px;
+        text-align: center;
+        min-width: 300px;
+    }
+    .recording-pulse {
+        width: 30px;
+        height: 30px;
+        background: red;
+        border-radius: 50%;
+        margin: 20px auto;
+        animation: pulse 1s infinite;
+    }
+    @keyframes pulse {
+        0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); }
+        70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(255, 0, 0, 0); }
+        100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); }
+    }
+</style>
+
+<div class="grid">
+    <div id="inbox-section">
+        <h2>Ingest New Data</h2>
+        <div class="card">
+            <form hx-post="{% url 'ingest_media' %}" 
+                  hx-target="#inbox-list" 
+                  hx-swap="afterbegin" 
+                  enctype="multipart/form-data"
+                  hx-on::after-request="this.reset()">
+                <div style="margin-bottom: 10px;">
+                    <textarea 
+                        name="text_input" 
+                        placeholder="What happened in the garden? (Ctrl + Enter to ingest)" 
+                        style="width: 100%; height: 60px;"
+                        hx-on:keydown="if(event.ctrlKey && event.key === 'Enter') { event.preventDefault(); this.form.requestSubmit(); }"
+                    ></textarea>
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <input type="file" name="file_obj">
+                </div>
+                <button type="submit">Ingest</button>
+            </form>
+        </div>
+
+        <h2>Inbox (Pending items)</h2>
+        <div id="inbox-list">
+            {% for item in ingest_items %}
+                {% include 'core/partials/inbox_card.html' with item=item zones=zones %}
+            {% empty %}
+                <p>No pending items in the inbox.</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div id="history-section">
+        <h2>Recent History</h2>
+        <div class="card">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Type</th>
+                        <th>Zone</th>
+                        <th>Plant</th>
+                    </tr>
+                </thead>
+                <tbody id="event-history" hx-get="{% url 'event_history_partial' %}" hx-trigger="eventConfirmed from:body">
+                    {% for event in events %}
+                        <tr>
+                            <td>{{ event.performed_at|date:"Y-m-d H:i" }}</td>
+                            <td>{{ event.get_event_type_display }}</td>
+                            <td>{{ event.zone.name }}</td>
+                            <td>
+                                {% if event.plant %}
+                                    <a href="{% url 'plant_detail' event.plant.id %}" style="color: var(--primary-color); text-decoration: none; border-bottom: 1px dotted var(--primary-color);">{{ event.plant.name }}</a>
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="4">No events recorded yet.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden form for audio upload -->
+<form id="voiceUploadForm" hx-post="{% url 'ingest_media' %}" hx-target="#inbox-list" hx-swap="afterbegin" enctype="multipart/form-data" style="display:none;">
+    <input type="file" name="audio_file" id="voiceFileInput">
+</form>
+
+<!-- Voice FAB -->
+<button class="fab" onclick="openVoiceModal()">
+    🎤
+</button>
+
+<!-- Voice Modal -->
+<div id="voiceModal" class="modal">
+    <div class="modal-content">
+        <h3>Voice Note</h3>
+        <div id="recordingStatus" style="display: none;">
+            <div class="recording-pulse"></div>
+            <p>Recording...</p>
+        </div>
+        <div style="margin-top: 20px;">
+            <button id="recordBtn" onclick="startRecording()">Start Recording</button>
+            <button id="stopBtn" onclick="stopRecording()" style="display: none; background-color: #d32f2f;">Stop & Upload</button>
+            <button onclick="closeVoiceModal()" style="background-color: #757575;">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let mediaRecorder;
+    let audioChunks = [];
+
+    function getSupportedMimeType() {
+        const types = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm'];
+        for (const type of types) {
+            if (MediaRecorder.isTypeSupported(type)) {
+                return type;
+            }
+        }
+        return '';
+    }
+
+    function openVoiceModal() {
+        if (!window.MediaRecorder) {
+            alert("Microphone not supported on this browser.");
+            return;
+        }
+        document.getElementById('voiceModal').style.display = 'flex';
+    }
+
+    function closeVoiceModal() {
+        document.getElementById('voiceModal').style.display = 'none';
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+            mediaRecorder.stop();
+        }
+    }
+
+    async function startRecording() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const mimeType = getSupportedMimeType();
+            const options = mimeType ? { mimeType } : {};
+            
+            mediaRecorder = new MediaRecorder(stream, options);
+            audioChunks = [];
+
+            mediaRecorder.ondataavailable = event => {
+                audioChunks.push(event.data);
+            };
+
+            mediaRecorder.onstop = async () => {
+                const finalMimeType = mediaRecorder.mimeType || 'audio/webm';
+                const extension = finalMimeType.includes('mp4') ? 'mp4' : 'webm';
+                const audioBlob = new Blob(audioChunks, { type: finalMimeType });
+                
+                const file = new File([audioBlob], `voice_note.${extension}`, { type: finalMimeType });
+                const container = new DataTransfer();
+                container.items.add(file);
+                
+                const fileInput = document.getElementById('voiceFileInput');
+                fileInput.files = container.files;
+
+                closeVoiceModal();
+                
+                // Show a temporary "Processing" card
+                const inboxList = document.getElementById('inbox-list');
+                const tempCard = document.createElement('div');
+                tempCard.className = 'card';
+                tempCard.id = 'temp-processing-card';
+                tempCard.innerHTML = '<p>Uploading & Processing Voice Note...</p>';
+                inboxList.prepend(tempCard);
+
+                // Trigger the hidden form
+                htmx.trigger('#voiceUploadForm', 'submit');
+                
+                // Listen for the swap to remove the temp card
+                document.body.addEventListener('htmx:afterOnLoad', function(evt) {
+                    if (evt.detail.target.id === 'inbox-list') {
+                        const card = document.getElementById('temp-processing-card');
+                        if (card) card.remove();
+                    }
+                }, { once: true });
+            };
+
+            mediaRecorder.start();
+            document.getElementById('recordBtn').style.display = 'none';
+            document.getElementById('stopBtn').style.display = 'inline-block';
+            document.getElementById('recordingStatus').style.display = 'block';
+        } catch (err) {
+            alert("Could not access microphone: " + err);
+        }
+    }
+
+    function stopRecording() {
+        if (mediaRecorder) {
+            mediaRecorder.stop();
+            document.getElementById('recordBtn').style.display = 'inline-block';
+            document.getElementById('stopBtn').style.display = 'none';
+            document.getElementById('recordingStatus').style.display = 'none';
+        }
+    }
+</script>
+{% endblock %}

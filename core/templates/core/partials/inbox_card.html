@@ -1,0 +1,155 @@
+<div class="card" id="ingest-{{ item.id }}">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+        <h3 style="margin: 0;">
+            New Ingestion Item 
+            {% if item.audio_file %}
+                <span title="Voice Ingestion">🔊</span>
+            {% endif %}
+        </h3>
+        <button
+            type="button"
+            class="btn btn-danger"
+            style="background-color: #b91c1c; color: #fff; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer;"
+            hx-post="{% url 'ingest_delete' item.id %}"
+            hx-target="#ingest-{{ item.id }}"
+            hx-swap="outerHTML"
+            hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
+            hx-confirm="Remove this item from the inbox?"
+        >
+            Remove
+        </button>
+    </div>
+
+    {% if error_message %}
+        <div style="margin-top: 10px; padding: 8px 10px; border-radius: 4px; background: #fef2f2; color: #991b1b; border: 1px solid #fecaca;">
+            {{ error_message }}
+        </div>
+    {% endif %}
+    <p>
+        <strong>Text:</strong> 
+        {% if item.transcript_clean %}
+            {{ item.transcript_clean }}
+            <br><small style="color: #666;">Raw: {{ item.raw_text }}</small>
+        {% else %}
+            {{ item.raw_text }}
+        {% endif %}
+    </p>
+    {% if item.audio_file %}
+        <p><strong>Audio:</strong> <audio controls src="{{ item.audio_file.url }}" style="height: 30px; vertical-align: middle;"></audio></p>
+    {% endif %}
+    {% if item.source_file %}
+        <p><strong>File:</strong> <a href="{{ item.source_file.url }}" target="_blank">{{ item.source_file.name }}</a></p>
+    {% endif %}
+    
+    <form hx-post="{% url 'confirm_ingest' item.id %}" hx-target="#ingest-{{ item.id }}" hx-swap="outerHTML">
+        <div style="background: #f9f9f9; padding: 10px; border-radius: 4px; margin-bottom: 10px;">
+            <label><strong>Default Event Date:</strong></label>
+            <input type="date" name="event_date" value="{{ item.predicted_data.predicted_date|default:'' }}" style="width: 200px; padding: 4px;">
+        </div>
+
+        <div id="actions-list-{{ item.id }}">
+            {% for action in item.predicted_data.actions %}
+                {# Ensure we ALWAYS have an index, even if forloop fails #}
+                {% with idx=forloop.index0|default:forloop.counter0 %}
+                <div class="action-item" data-index="{{ idx }}" style="border: 1px solid #ddd; padding: 10px; border-radius: 4px; margin-bottom: 10px; background: white;">
+                    <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; background: #fffde7; padding: 8px; border-radius: 4px;">
+                        <div>
+                            <label><strong>Zone:</strong></label>
+                            <select name="action_{{ idx }}_zone_id" required style="width: 100%;">
+                                {% for zone in zones %}
+                                    <option value="{{ zone.id }}" 
+                                        {% if action.predicted_zone and zone.name|lower == action.predicted_zone|lower %}selected
+                                        {% elif not action.predicted_zone and zone.name|lower == item.predicted_data.predicted_zone_name|lower %}selected
+                                        {% elif zone.name|lower in item.raw_text|lower and not action.predicted_zone %}selected
+                                        {% endif %}>
+                                        {{ zone.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label>Event Type:</label>
+                            <select name="action_{{ idx }}_event_type" required style="width: 100%;">
+                                {% for val, label in event_types %}
+                                    <option value="{{ val }}" {% if action.event_type == val %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid" style="grid-template-columns: 1fr; gap: 10px;">
+                        <div>
+                            <label>Plant:</label>
+                            <select name="action_{{ idx }}_plant_id" onchange="toggleNewPlantField('{{ item.id }}', '{{ idx }}')" style="width: 100%;">
+                                <option value="none">-- None / Whole Zone --</option>
+                                <option value="" {% if not action.plant_id and action.plant_name %}selected{% endif %}>-- New Plant --</option>
+                                {% for plant in plants %}
+                                    {% if action.event_type == 'TRANSPLANT' %}
+                                        {% if action.source_zone_id %}
+                                            {% if plant.zone_id == action.source_zone_id %}
+                                                <option value="{{ plant.id }}" {% if action.plant_id == plant.id or action.plant_name|lower == plant.name|lower %}selected{% endif %}>{{ plant.name }} ({{ plant.zone.name }})</option>
+                                            {% endif %}
+                                        {% elif plant.status == 'SEEDLING' or plant.status == 'GERMINATED' %}
+                                             <option value="{{ plant.id }}" {% if action.plant_id == plant.id or action.plant_name|lower == plant.name|lower %}selected{% endif %}>{{ plant.name }} ({{ plant.zone.name }})</option>
+                                        {% endif %}
+                                    {% else %}
+                                        <option value="{{ plant.id }}" {% if action.plant_id == plant.id or action.plant_name|lower == plant.name|lower %}selected{% endif %}>{{ plant.name }}</option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div id="new-plant-div-{{ item.id }}-{{ idx }}" style="margin-top: 5px; {% if action.plant_id or not action.plant_name %}display: none;{% endif %}">
+                        <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div>
+                                <label style="font-size: 0.8em;">Species:</label>
+                                <select name="action_{{ idx }}_species_id" style="width: 100%;">
+                                    <option value="">-- Select Species --</option>
+                                    {% for s in species %}
+                                        <option value="{{ s.id }}" {% if action.species_id == s.id or action.plant_name|lower == s.name|lower %}selected{% endif %}>{{ s.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div>
+                                <label style="font-size: 0.8em;">Custom Name (Optional):</label>
+                                <input type="text" name="action_{{ idx }}_new_plant_name" value="{% if not action.plant_id %}{{ action.plant_name|default:'' }}{% endif %}" placeholder="Optional custom name..." style="width: 100%;">
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if action.metadata %}
+                    <div style="margin-top: 10px; font-size: 0.9em; background: #fff3e0; padding: 8px; border-radius: 4px;">
+                        <strong>Metadata:</strong>
+                        {% for key, value in action.metadata.items %}
+                            <div style="display: flex; justify-content: space-between; margin-top: 4px;">
+                                <span>{{ key }}:</span>
+                                {% if key == 'is_direct' %}
+                                    <select name="action_{{ idx }}_meta_{{ key }}">
+                                        <option value="True" {% if value %}selected{% endif %}>Direct</option>
+                                        <option value="False" {% if not value %}selected{% endif %}>Indirect</option>
+                                    </select>
+                                {% else %}
+                                    <input type="text" name="action_{{ idx }}_meta_{{ key }}" value="{{ value }}" style="width: 60px;">
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+                {% endwith %}
+            {% endfor %}
+        </div>
+
+        <button type="submit" style="width: 100%; margin-top: 10px;">Confirm All Events</button>
+    </form>
+
+    <script>
+        function toggleNewPlantField(itemId, actionIdx) {
+            const select = document.getElementsByName('action_' + actionIdx + '_plant_id')[0];
+            const div = document.getElementById('new-plant-div-' + itemId + '-' + actionIdx);
+            // Show only if value is EXACTLY empty string (the "New Plant" option)
+            div.style.display = select.value === "" ? 'block' : 'none';
+        }
+    </script>
+</div>
