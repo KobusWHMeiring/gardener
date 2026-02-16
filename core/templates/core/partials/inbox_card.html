@@ -130,10 +130,38 @@
                                         <option value="False" {% if not value %}selected{% endif %}>Indirect</option>
                                     </select>
                                 {% else %}
-                                    <input type="text" name="action_{{ idx }}_meta_{{ key }}" value="{{ value }}" style="width: 60px;">
+                                    <input type="text" name="action_{{ idx }}_meta_{{ key }}" value="{{ value }}" style="width: 200px;">
                                 {% endif %}
                             </div>
                         {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    {# Recipe selector for FERTILIZE events or WATER events with fertilizer metadata #}
+                    {% if action.event_type == 'FERTILIZE' or action.metadata.fertilizer %}
+                    <div style="margin-top: 10px; padding: 8px; background: #e8f5e9; border-radius: 4px; border: 1px solid #c8e6c9;">
+                        <label style="font-weight: bold; color: #2e7d32;">
+                            {% if action.event_type == 'FERTILIZE' %}
+                                Fertilizer Recipe:
+                            {% else %}
+                                Fertilizer Applied:
+                            {% endif %}
+                        </label>
+                        <select name="action_{{ idx }}_recipe_id" style="width: 100%; margin-top: 4px;">
+                            <option value="">-- Select Recipe --</option>
+                            {% for recipe in recipes %}
+                                <option value="{{ recipe.id }}" 
+                                    {% if action.recipe_id == recipe.id %}selected{% endif %}
+                                    {% if action.metadata.fertilizer and recipe.name|lower in action.metadata.fertilizer|lower %}selected{% endif %}>
+                                    {{ recipe.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        {% if action.metadata.fertilizer and not action.recipe_id %}
+                            <small style="color: #666; display: block; margin-top: 4px;">
+                                Detected: "{{ action.metadata.fertilizer }}" - please select matching recipe above
+                            </small>
+                        {% endif %}
                     </div>
                     {% endif %}
                 </div>

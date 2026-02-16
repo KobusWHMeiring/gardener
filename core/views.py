@@ -113,6 +113,7 @@ def confirm_ingest(request, ingest_id):
                         'plant_id': (lambda p: None if p == 'none' else p)(request.POST.get(f'action_{idx}_plant_id')),
                         'species_id': request.POST.get(f'action_{idx}_species_id') or None,
                         'new_plant_name': request.POST.get(f'action_{idx}_new_plant_name') or None,
+                        'recipe_id': request.POST.get(f'action_{idx}_recipe_id') or None,
                         'metadata': metadata
                     })
                 except (IndexError, ValueError):

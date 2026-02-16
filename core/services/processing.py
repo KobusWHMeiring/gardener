@@ -85,6 +85,11 @@ def process_ingest_item_multi(ingest_id, verified_data):
             }
             if action_event_date_str:
                 event_kwargs['performed_at'] = action_event_date_str
+            
+            # Handle recipe_id if provided
+            recipe_id = action.get('recipe_id')
+            if recipe_id:
+                event_kwargs['recipe_id'] = recipe_id
 
             event = GardenEvent.objects.create(**event_kwargs)
             created_events.append(event)

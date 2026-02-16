@@ -74,6 +74,10 @@ def enrich_ingest_item(ingest_id):
     - WATERING RULE: Default to `plant_id: null` for watering events unless a specific individual plant is clearly the sole target (e.g., "watered the lemon tree"). Mentioning a crop (e.g., "watered the tomatoes") usually means watering the whole zone/bed.
     - MULTI-ZONE: If actions happen in different zones, specify the `predicted_zone` inside EACH action.
     - Greenhouse/Tray Rule: Any activity in the "Greenhouse" or mentioned as "seedling tray" MUST use `event_type: SOW` (never `PLANT`) and `is_direct: false`.
+    - FERTIGATION RULE: When watering mentions fertilizers (e.g., "watered with worm tea", "fertigated with comfrey tea", "added fertilizer to irrigation"):
+        a) Add fertilizer information to the WATER event's metadata with key "fertilizer" containing the description
+        b) Also create a separate FERTILIZE event for the same zone(s) with the fertilizer details in metadata
+        c) Match the fertilizer description against Known Fertilizer Recipes - if a match is found, set "recipe_id" in the action
     """
 
     try:
@@ -178,6 +182,29 @@ def enrich_ingest_item(ingest_id):
                     if 'metadata' not in action:
                         action['metadata'] = {}
                     action['metadata']['is_direct'] = False
+
+        # FERTIGATION LOGIC: If WATER events have fertilizer metadata, create FERTILIZE events
+        additional_fertilize_actions = []
+        for action in actions:
+            if action.get('event_type') == GardenEvent.EventType.WATER:
+                metadata = action.get('metadata', {})
+                fertilizer_info = metadata.get('fertilizer')
+                if fertilizer_info:
+                    # Create a matching FERTILIZE event for the same zone
+                    fertilize_action = {
+                        'event_type': GardenEvent.EventType.FERTILIZE,
+                        'plant_id': action.get('plant_id'),  # Same plant (usually None for fertigation)
+                        'plant_name': action.get('plant_name'),
+                        'species_id': action.get('species_id'),
+                        'predicted_zone': action.get('predicted_zone'),
+                        'source_zone_id': action.get('source_zone_id'),
+                        'metadata': {'fertilizer': fertilizer_info},
+                        'recipe_id': action.get('recipe_id')  # Pass through if AI matched a recipe
+                    }
+                    additional_fertilize_actions.append(fertilize_action)
+        
+        # Append the fertilize actions to the main actions list
+        actions.extend(additional_fertilize_actions)
 
         ingest_item.predicted_action = actions[0]['event_type'] if actions else 'NOTE'
         ingest_item.predicted_data = {
