@@ -101,7 +101,7 @@ def enrich_ingest_item(ingest_id):
         else:
             content_parts.append({"text": f"User Text: {ingest_item.raw_text}"})
 
-        response = client.responses.generate(
+        response = client.models.generate_content(
             model=model_name,
             contents=[{
                 "role": "user",
